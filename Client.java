@@ -1,14 +1,19 @@
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Client {
-    public static void main(String[] args) throws NoSuchAlgorithmException, IOException {
+    public static void main(String[] args) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
 
         if (args.length != 3) {
             System.err.println("Usage: java Client host port userId");
@@ -25,8 +30,22 @@ public class Client {
         String publicFilename = args[2] + ".pub";
         String privateFilename = args[2] + ".prv";
 
+        // get current working directory
+        String dir = System.getProperty("user.dir");
+        String publicKeyPath = dir + "\\" + publicFilename;
+        String privateKeyPath = dir + "\\" + privateFilename;
+
         // append filename using userId ---> alice.pub, alice.prv
         // search the current directory for those filenames
+
+        FileInputStream fis = new FileInputStream(publicKeyPath);
+        byte[] publicKeyBytes = new byte[fis.available()];
+        fis.read(publicKeyBytes);
+        fis.close();
+
+        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        PublicKey publicKey = keyFactory.generatePublic(keySpec);
 
         try {
             String userHash = GetHashFromUser(args); // Assume this function exists and works as intended
