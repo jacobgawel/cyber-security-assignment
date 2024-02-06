@@ -3,14 +3,13 @@ import javax.crypto.NoSuchPaddingException;
 import java.io.*;
 import java.net.Socket;
 import java.security.*;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Scanner;
 
 public class Client {
     public static void main(String[] args) throws
@@ -97,15 +96,28 @@ public class Client {
                 System.out.println("Date: " + date + "\nMessage: " + message + "\n");
             }
 
+            Scanner scanner = new Scanner(System.in);
+
+            System.out.print("Do you want to send a message? [y/n]: ");
+            String userInput = scanner.nextLine();
+
+            if (userInput.equals("n")) {
+                System.exit(-1);
+            }
+
             // After processing server messages, send client messages
             byte[] encryptedUserId = cipher.doFinal(userId.getBytes());
             dos.writeUTF(Base64.getEncoder().encodeToString(encryptedUserId));
 
-            String recipient = "bob";
+            System.out.print("Enter the recipient userid: ");
+            String recipient = scanner.nextLine();
+
             byte[] encryptedRecipient = cipher.doFinal(recipient.getBytes());
             dos.writeUTF(Base64.getEncoder().encodeToString(encryptedRecipient)); // Assuming "bob" is the recipient
 
-            String message = "hello world";
+            System.out.print("Enter your message: ");
+            String message = scanner.nextLine();
+
             byte[] encryptedMessage = cipher.doFinal(message.getBytes());
             dos.writeUTF(Base64.getEncoder().encodeToString(encryptedMessage)); // The message
 

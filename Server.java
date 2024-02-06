@@ -5,6 +5,7 @@ import javax.crypto.NoSuchPaddingException;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -19,7 +20,11 @@ import java.util.List;
 public class Server {
     static List<String[]> Messages = new ArrayList<>();
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws IOException,
+            NoSuchAlgorithmException, InvalidKeySpecException,
+            NoSuchPaddingException, InvalidKeyException,
+            IllegalBlockSizeException, BadPaddingException {
+
         // tries to get the port from the command line argument
 
         int port;
@@ -46,51 +51,57 @@ public class Server {
         System.out.println("--------------");
 
         while(true) {
-            Socket socket = socketServer.accept();
-            DataInputStream dis = new DataInputStream(socket.getInputStream());
-            DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
 
-            String userHash = dis.readUTF();
+            try {
+                Socket socket = socketServer.accept();
+                DataInputStream dis = new DataInputStream(socket.getInputStream());
+                DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
 
-            List<String[]> messagesForClient = GetMessageForUser(userHash);
+                String userHash = dis.readUTF();
 
-            if(!messagesForClient.isEmpty()) {
-                for (String[] message : messagesForClient) {
-                    dos.writeUTF(message[2]);
-                    dos.writeUTF(message[3]);
+                List<String[]> messagesForClient = GetMessageForUser(userHash);
+
+                if (!messagesForClient.isEmpty()) {
+                    for (String[] message : messagesForClient) {
+                        dos.writeUTF(message[2]);
+                        dos.writeUTF(message[3]);
+                    }
+                    dos.writeUTF("END_OF_SERVER_MESSAGE");
+                } else {
+                    dos.writeUTF("NO_SERVER_MESSAGES");
                 }
-                dos.writeUTF("END_OF_SERVER_MESSAGE");
-            } else {
-                dos.writeUTF("NO_SERVER_MESSAGES");
-            }
 
-            System.out.println("login from user " + userHash);
-            System.out.println("Delivering " + messagesForClient.size() + " message(s)...");
+                System.out.println("login from user " + userHash);
+                System.out.println("Delivering " + messagesForClient.size() + " message(s)...");
 
-            List<String> clientMessage = new ArrayList<>();
-            while(true) {
-                String message = dis.readUTF();
-                if("END_OF_CLIENT_MESSAGE".equals(message)) {
-                    break;
+                List<String> clientMessage = new ArrayList<>();
+                while (true) {
+                    String message = dis.readUTF();
+                    if ("END_OF_CLIENT_MESSAGE".equals(message)) {
+                        break;
+                    }
+                    clientMessage.add(message);
                 }
-                clientMessage.add(message);
+
+                String fromUserEncrypted = clientMessage.get(0);
+                String toUserEncrypted = clientMessage.get(1);
+                String messageEncrypted = clientMessage.get(2);
+
+                // the message gets decrypted before going into the function that logs the message which
+                // should encrypt the message with the corresponding public key according to the toUser
+                String decryptedFromUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(fromUserEncrypted)));
+                String decryptedToUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(toUserEncrypted)));
+                String decryptedMessage = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(messageEncrypted)));
+
+                LogMessage(decryptedToUser, decryptedFromUser, decryptedMessage);
+            } catch (SocketException ex) {
+                System.out.println("Client disconnected...\n");
             }
-
-            String fromUserEncrypted = clientMessage.get(0);
-            String toUserEncrypted = clientMessage.get(1);
-            String messageEncrypted = clientMessage.get(2);
-
-            // the message gets decrypted before going into the function that logs the message which
-            // should encrypt the message with the corresponding public key according to the toUser
-            String decryptedFromUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(fromUserEncrypted)));
-            String decryptedToUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(toUserEncrypted)));
-            String decryptedMessage = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(messageEncrypted)));
-
-            LogMessage(decryptedToUser, decryptedFromUser, decryptedMessage);
         }
     }
 
-    private static PrivateKey getServerPrivateKey(String serverPrivateKeyPath) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+    private static PrivateKey getServerPrivateKey(String serverPrivateKeyPath) throws IOException,
+            NoSuchAlgorithmException, InvalidKeySpecException {
         // This function is responsible for getting the private key for the server
 
         File privateFile = new File(serverPrivateKeyPath);
