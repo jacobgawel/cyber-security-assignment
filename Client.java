@@ -87,9 +87,14 @@ public class Client {
                 serverMessage.add(decryptedMessage);
             }
 
+            System.out.println("There are " + serverMessage.size() / 2 + " message(s) for you.\n");
+
             // Print messages received from the server
-            for (String text : serverMessage) {
-                System.out.println(text);
+            for (int i = 0; i < serverMessage.size(); i += 2) {
+                String message = serverMessage.get(i);
+                String date = serverMessage.get(i + 1);
+
+                System.out.println("Date: " + date + "\nMessage: " + message + "\n");
             }
 
             // After processing server messages, send client messages

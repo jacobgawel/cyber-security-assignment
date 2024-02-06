@@ -56,7 +56,6 @@ public class Server {
 
             if(!messagesForClient.isEmpty()) {
                 for (String[] message : messagesForClient) {
-                    dos.writeUTF(message[1]);
                     dos.writeUTF(message[2]);
                     dos.writeUTF(message[3]);
                 }
