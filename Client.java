@@ -1,7 +1,4 @@
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.security.KeyFactory;
 import java.security.MessageDigest;
@@ -37,18 +34,31 @@ public class Client {
         String dir = System.getProperty("user.dir");
         String publicKeyPath = dir + "\\" + publicFilename;
         String privateKeyPath = dir + "\\" + privateFilename;
+        String otherPublicKeyPath = "";
 
         // append filename using userId ---> alice.pub, alice.prv
         // search the current directory for those filenames
 
-        FileInputStream fis = new FileInputStream(publicKeyPath);
-        byte[] publicKeyBytes = new byte[fis.available()];
-        fis.read(publicKeyBytes);
+        File directory = new File(dir);
+        FilenameFilter publicKeyFilter = (File dir1, String name) ->
+                name.endsWith(".pub") && !name.equalsIgnoreCase(publicFilename);
+        File[] matchingFiles = directory.listFiles(publicKeyFilter);
+
+        if (matchingFiles != null && matchingFiles.length > 0) {
+            otherPublicKeyPath = matchingFiles[0].getAbsolutePath();
+        } else {
+            System.out.println("No other public key files found.");
+        }
+        System.out.println(otherPublicKeyPath);
+
+        FileInputStream fis = new FileInputStream(privateKeyPath);
+        byte[] privateKeyBytes = new byte[fis.available()];
+        fis.read(privateKeyBytes);
         fis.close();
 
-        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
+        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(privateKeyBytes);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        RSAPublicKey publicKey = (RSAPublicKey) keyFactory.generatePublic(keySpec);
+        RSAPublicKey privateKey = (RSAPublicKey) keyFactory.generatePrivate(keySpec);
 
         try {
             String userHash = GetHashFromUser(args); // Assume this function exists and works as intended
