@@ -20,7 +20,12 @@ public class Client {
 
         String host = args[0];
         int port = Integer.parseInt(args[1]);
-        String userId = args[2];
+        String userId = args[2]; // <------ userid variable
+
+        // append filename using userId ---> alice.pub, alice.prv
+        // search the current directory for those filenames
+
+
 
         try {
             String userHash = GetHashFromUser(args); // Assume this function exists and works as intended
