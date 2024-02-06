@@ -13,8 +13,8 @@ import java.util.Base64;
 import java.util.List;
 
 public class Client {
-    public static void main(String[] args) throws NoSuchAlgorithmException,
-            IOException, InvalidKeySpecException, NoSuchPaddingException, InvalidKeyException {
+    public static void main(String[] args) throws
+            NoSuchAlgorithmException, IOException, InvalidKeySpecException, NoSuchPaddingException, InvalidKeyException {
 
         if (args.length != 3) {
             System.err.println("Usage: java Client host port userId");

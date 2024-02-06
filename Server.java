@@ -1,12 +1,19 @@
+import javax.crypto.Cipher;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
 
@@ -17,11 +24,27 @@ public class Server {
         // tries to get the port from the command line argument
 
         int port;
-
+        String serverPrivateFilename = "server.prv";
+        String dir = System.getProperty("user.dir");
+        String serverPrivateKeyPath = dir + "\\" + serverPrivateFilename;
         if (args.length != 1) {
             System.err.println("Usage: java Server port");
             System.exit(-1);
         }
+
+        // Getting server private key
+        File srvPrivateFile = new File(serverPrivateKeyPath);
+        FileInputStream serverPrivateFis = new FileInputStream(srvPrivateFile);
+        byte[] serverPrivateBytes = new byte[(int) srvPrivateFile.length()];
+        serverPrivateFis.read(serverPrivateBytes);
+        serverPrivateFis.close();
+
+        PKCS8EncodedKeySpec privateSpec = new PKCS8EncodedKeySpec(serverPrivateBytes);
+        KeyFactory serverPrivateKeyFactory = KeyFactory.getInstance("RSA");
+        PrivateKey serverPrivateKey = serverPrivateKeyFactory.generatePrivate(privateSpec);
+
+        Cipher serverCipherDecrypt = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        serverCipherDecrypt.init(Cipher.DECRYPT_MODE, serverPrivateKey);
 
         port = Integer.parseInt(args[0]);
 
@@ -64,11 +87,17 @@ public class Server {
                 clientMessage.add(message);
             }
 
-            String fromUser = clientMessage.get(0);
-            String toUser = clientMessage.get(1);
-            String message = clientMessage.get(2);
+            String fromUserEncrypted = clientMessage.get(0);
+            String toUserEncrypted = clientMessage.get(1);
+            String messageEncrypted = clientMessage.get(2);
 
-            LogMessage(toUser, fromUser, message);
+            // the message gets decrypted before going into the function that logs the message which
+            // should encrypt the message with the corresponding public key according to the toUser
+            String decryptedFromUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(fromUserEncrypted)));
+            String decryptedToUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(toUserEncrypted)));
+            String decryptedMessage = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(messageEncrypted)));
+
+            LogMessage(decryptedToUser, decryptedFromUser, decryptedMessage);
         }
     }
 
