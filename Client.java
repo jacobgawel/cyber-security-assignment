@@ -1,17 +1,20 @@
+import javax.crypto.Cipher;
+import javax.crypto.NoSuchPaddingException;
 import java.io.*;
 import java.net.Socket;
-import java.security.KeyFactory;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
+import java.security.*;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
 public class Client {
-    public static void main(String[] args) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
+    public static void main(String[] args) throws NoSuchAlgorithmException,
+            IOException, InvalidKeySpecException, NoSuchPaddingException, InvalidKeyException {
 
         if (args.length != 3) {
             System.err.println("Usage: java Client host port userId");
@@ -24,41 +27,37 @@ public class Client {
         String host = args[0];
         int port = Integer.parseInt(args[1]);
         String userId = args[2]; // <------ userid variable
-        // declaring filenames
-        String publicFilename = args[2] + ".pub";
         String privateFilename = args[2] + ".prv";
+        String publicFilename = "server.pub";
 
-        // get current working directory
-        // TODO: For not it gets args[2].prv, args[2].pub -> alice.pub, alice.prv
-        // we must get the other .pub key if it exists
         String dir = System.getProperty("user.dir");
-        String publicKeyPath = dir + "\\" + publicFilename;
         String privateKeyPath = dir + "\\" + privateFilename;
-        String otherPublicKeyPath = "";
+        String publicKeyPath = dir + "\\" + publicFilename;
 
-        // append filename using userId ---> alice.pub, alice.prv
-        // search the current directory for those filenames
+        File privateFile = new File(privateKeyPath);
+        FileInputStream privateFis = new FileInputStream(privateFile);
+        byte[] privateKeyBytes = new byte[(int) privateFile.length()];
+        privateFis.read(privateKeyBytes);
+        privateFis.close();
 
-        File directory = new File(dir);
-        FilenameFilter publicKeyFilter = (File dir1, String name) ->
-                name.endsWith(".pub") && !name.equalsIgnoreCase(publicFilename);
-        File[] matchingFiles = directory.listFiles(publicKeyFilter);
+        PKCS8EncodedKeySpec privateSpec = new PKCS8EncodedKeySpec(privateKeyBytes);
+        KeyFactory privateKeyFactory = KeyFactory.getInstance("RSA");
+        PrivateKey privateKey = privateKeyFactory.generatePrivate(privateSpec);
 
-        if (matchingFiles != null && matchingFiles.length > 0) {
-            otherPublicKeyPath = matchingFiles[0].getAbsolutePath();
-        } else {
-            System.out.println("No other public key files found.");
-        }
-        System.out.println(otherPublicKeyPath);
+        File publicFile = new File(publicKeyPath);
+        FileInputStream publicFis = new FileInputStream(publicFile);
+        byte[] publicKeyBytes = new byte[(int) publicFile.length()];
+        publicFis.read(publicKeyBytes); // Corrected variable name here
+        publicFis.close();
 
-        FileInputStream fis = new FileInputStream(privateKeyPath);
-        byte[] privateKeyBytes = new byte[fis.available()];
-        fis.read(privateKeyBytes);
-        fis.close();
+        // Generate the public key
+        X509EncodedKeySpec publicSpec = new X509EncodedKeySpec(publicKeyBytes);
+        KeyFactory publicKeyFactory = KeyFactory.getInstance("RSA");
+        PublicKey publicKey = publicKeyFactory.generatePublic(publicSpec);
 
-        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(privateKeyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        RSAPublicKey privateKey = (RSAPublicKey) keyFactory.generatePrivate(keySpec);
+        // Encrypt data
+        Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
 
         try {
             String userHash = GetHashFromUser(args); // Assume this function exists and works as intended
@@ -88,9 +87,17 @@ public class Client {
             }
 
             // After processing server messages, send client messages
-            dos.writeUTF(userId);
-            dos.writeUTF("bob"); // Assuming "bob" is the recipient
-            dos.writeUTF("hello world"); // The message
+            byte[] encryptedUserId = cipher.doFinal(userId.getBytes());
+            dos.writeUTF(Base64.getEncoder().encodeToString(encryptedUserId));
+
+            String recipient = "bob";
+            byte[] encryptedRecipient = cipher.doFinal(recipient.getBytes());
+            dos.writeUTF(Base64.getEncoder().encodeToString(encryptedRecipient)); // Assuming "bob" is the recipient
+
+            String message = "hello world";
+            byte[] encryptedMessage = cipher.doFinal(message.getBytes());
+            dos.writeUTF(Base64.getEncoder().encodeToString(encryptedMessage)); // The message
+
             dos.writeUTF("END_OF_CLIENT_MESSAGE"); // Signal the end of messages
 
         } catch (Exception exception) {
