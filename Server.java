@@ -1,15 +1,14 @@
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.security.KeyFactory;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
+import java.security.*;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -32,16 +31,7 @@ public class Server {
             System.exit(-1);
         }
 
-        // Getting server private key
-        File srvPrivateFile = new File(serverPrivateKeyPath);
-        FileInputStream serverPrivateFis = new FileInputStream(srvPrivateFile);
-        byte[] serverPrivateBytes = new byte[(int) srvPrivateFile.length()];
-        serverPrivateFis.read(serverPrivateBytes);
-        serverPrivateFis.close();
-
-        PKCS8EncodedKeySpec privateSpec = new PKCS8EncodedKeySpec(serverPrivateBytes);
-        KeyFactory serverPrivateKeyFactory = KeyFactory.getInstance("RSA");
-        PrivateKey serverPrivateKey = serverPrivateKeyFactory.generatePrivate(privateSpec);
+        PrivateKey serverPrivateKey = getServerPrivateKey(serverPrivateKeyPath);
 
         Cipher serverCipherDecrypt = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         serverCipherDecrypt.init(Cipher.DECRYPT_MODE, serverPrivateKey);
@@ -101,7 +91,24 @@ public class Server {
         }
     }
 
-    public static void LogMessage(String toUser, String fromUser, String message) throws NoSuchAlgorithmException {
+    private static PrivateKey getServerPrivateKey(String serverPrivateKeyPath) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        // This function is responsible for getting the private key for the server
+
+        File privateFile = new File(serverPrivateKeyPath);
+        FileInputStream fileInputStream = new FileInputStream(privateFile);
+        byte[] serverPrivateBytes = new byte[(int) privateFile.length()];
+        fileInputStream.read(serverPrivateBytes);
+        fileInputStream.close();
+
+        PKCS8EncodedKeySpec privateSpec = new PKCS8EncodedKeySpec(serverPrivateBytes);
+        KeyFactory serverPrivateKeyFactory = KeyFactory.getInstance("RSA");
+
+        return serverPrivateKeyFactory.generatePrivate(privateSpec);
+    }
+
+    public static void LogMessage(String toUser, String fromUser, String message) throws NoSuchAlgorithmException,
+            IOException, InvalidKeySpecException, NoSuchPaddingException, InvalidKeyException,
+            IllegalBlockSizeException, BadPaddingException {
         /*
             this is the simple function that is supposed to add the message to the list,
             this is likely well the encryption will be implemented later on
@@ -109,10 +116,38 @@ public class Server {
 
         // Format of the message is: toUser, fromUser, message, timestamp, readStatus
         // this means that to get the message to the user, we must access message[userId] in a for loop
-        String userIdHashed = GetHash(toUser);
+
+        String fileName = toUser + ".pub";
+        String dir = System.getProperty("user.dir");
+        String publicKeyPath = dir + "\\" + fileName;
+
+        File publicFile = new File(publicKeyPath);
+        FileInputStream fileInputStream = new FileInputStream(publicFile);
+        byte[] publicKeyBytes = new byte[(int) publicFile.length()];
+        fileInputStream.read(publicKeyBytes);
+        fileInputStream.close();
+
+        // Generate the public key
+        X509EncodedKeySpec publicSpec = new X509EncodedKeySpec(publicKeyBytes);
+        KeyFactory publicKeyFactory = KeyFactory.getInstance("RSA");
+        PublicKey publicKey = publicKeyFactory.generatePublic(publicSpec);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        Messages.add(new String[]{userIdHashed, fromUser, message, LocalDateTime.now().format(formatter)});
-        System.out.println(LocalDateTime.now().format(formatter));
+
+        // Encrypt data
+        Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+
+        // TODO: illegal padding exception would get thrown over here
+        String fromUserEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(fromUser.getBytes()));
+        String messageEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(message.getBytes()));
+        String timestampEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(LocalDateTime.now().format(formatter).getBytes()));
+
+        String userIdHashed = GetHash(toUser);
+
+        Messages.add(new String[]{userIdHashed, fromUserEncrypted,
+                messageEncrypted, timestampEncrypted});
+
+        System.out.println();
         System.out.println("incoming message from " + fromUser);
         System.out.println("recipient: " + toUser);
         System.out.println("message: " + message + "\n");

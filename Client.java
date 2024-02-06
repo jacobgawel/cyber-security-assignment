@@ -59,6 +59,10 @@ public class Client {
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         cipher.init(Cipher.ENCRYPT_MODE, publicKey);
 
+        // Decrypt data
+        Cipher decryptCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        decryptCipher.init(Cipher.DECRYPT_MODE, privateKey);
+
         try {
             String userHash = GetHashFromUser(args); // Assume this function exists and works as intended
             Socket socket = new Socket(host, port);
@@ -78,7 +82,9 @@ public class Client {
                 if("END_OF_SERVER_MESSAGE".equals(message)) {
                     break;
                 }
-                serverMessage.add(message);
+                // TODO: Might need some exception handling over here for the incorrect ciphers etc
+                String decryptedMessage = new String(decryptCipher.doFinal(Base64.getDecoder().decode(message)));
+                serverMessage.add(decryptedMessage);
             }
 
             // Print messages received from the server
