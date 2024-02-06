@@ -7,6 +7,7 @@ import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
@@ -31,6 +32,8 @@ public class Client {
         String privateFilename = args[2] + ".prv";
 
         // get current working directory
+        // TODO: For not it gets args[2].prv, args[2].pub -> alice.pub, alice.prv
+        // we must get the other .pub key if it exists
         String dir = System.getProperty("user.dir");
         String publicKeyPath = dir + "\\" + publicFilename;
         String privateKeyPath = dir + "\\" + privateFilename;
@@ -45,7 +48,7 @@ public class Client {
 
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        PublicKey publicKey = keyFactory.generatePublic(keySpec);
+        RSAPublicKey publicKey = (RSAPublicKey) keyFactory.generatePublic(keySpec);
 
         try {
             String userHash = GetHashFromUser(args); // Assume this function exists and works as intended
