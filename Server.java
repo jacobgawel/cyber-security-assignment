@@ -91,21 +91,25 @@ public class Server {
 
                 // the message gets decrypted before going into the function that logs the message which
                 // should encrypt the message with the corresponding public key according to the toUser
-                String decryptedFromUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(fromUserEncrypted)));
-
-                boolean senderUserIdCheck = true;
                 try {
-                    File senderPublicFile = new File(System.getProperty("user.dir") + "\\" + decryptedFromUser + ".pub");
-                    FileInputStream fileCheck = new FileInputStream(senderPublicFile);
-                } catch (FileNotFoundException ex) {
-                    System.err.println("Sender UserId does not exist on this server, message discarded");
-                    senderUserIdCheck = false;
-                }
+                    String decryptedFromUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(fromUserEncrypted)));
 
-                if (senderUserIdCheck) {
-                    String decryptedToUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(toUserEncrypted)));
-                    String decryptedMessage = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(messageEncrypted)));
-                    LogMessage(decryptedToUser, decryptedFromUser, decryptedMessage);
+                    boolean senderUserIdCheck = true;
+                    try {
+                        File senderPublicFile = new File(System.getProperty("user.dir") + "\\" + decryptedFromUser + ".pub");
+                        FileInputStream fileCheck = new FileInputStream(senderPublicFile);
+                    } catch (FileNotFoundException ex) {
+                        System.err.println("Sender UserId does not exist on this server, message discarded");
+                        senderUserIdCheck = false;
+                    }
+
+                    if (senderUserIdCheck) {
+                        String decryptedToUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(toUserEncrypted)));
+                        String decryptedMessage = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(messageEncrypted)));
+                        LogMessage(decryptedToUser, decryptedFromUser, decryptedMessage);
+                    }
+                } catch (BadPaddingException ex) {
+                    System.err.println("Decryption failed using the server key, message discarded");
                 }
 
             } catch (SocketException ex) {
@@ -185,8 +189,8 @@ public class Server {
             System.out.println("recipient: " + toUser);
             System.out.println("message: " + message + "\n");
         } catch (BadPaddingException ex) {
-            System.err.println("Encryption failed, message re-encrypted using different userId");
-            // TODO: Implement code for the re-encryption in the catch block and then save the message
+            System.err.println("Encryption failed, message discarded");
+            // TODO: Implement code for the re-encryption (potentially) in the catch block and then save the message
             // "The server then re-encrypts the message (but without the recipient userid). Finally the server
             // computes the hashed recipient userid, and saves it and the encrypted message to its collection of
             // messages. The original (un-hashed) recipient userid is not stored.
