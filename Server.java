@@ -57,6 +57,7 @@ public class Server {
                 DataInputStream dis = new DataInputStream(socket.getInputStream());
                 DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
 
+                // the client connects to the server and passes through the hashed userId
                 String userHash = dis.readUTF();
                 userHash = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(userHash)));
 
@@ -91,10 +92,22 @@ public class Server {
                 // the message gets decrypted before going into the function that logs the message which
                 // should encrypt the message with the corresponding public key according to the toUser
                 String decryptedFromUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(fromUserEncrypted)));
-                String decryptedToUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(toUserEncrypted)));
-                String decryptedMessage = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(messageEncrypted)));
 
-                LogMessage(decryptedToUser, decryptedFromUser, decryptedMessage);
+                boolean senderUserIdCheck = true;
+                try {
+                    File senderPublicFile = new File(System.getProperty("user.dir") + "\\" + decryptedFromUser + ".pub");
+                    FileInputStream fileCheck = new FileInputStream(senderPublicFile);
+                } catch (FileNotFoundException ex) {
+                    System.err.println("Sender UserId does not exist on this server, message discarded");
+                    senderUserIdCheck = false;
+                }
+
+                if (senderUserIdCheck) {
+                    String decryptedToUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(toUserEncrypted)));
+                    String decryptedMessage = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(messageEncrypted)));
+                    LogMessage(decryptedToUser, decryptedFromUser, decryptedMessage);
+                }
+
             } catch (SocketException ex) {
                 System.out.println("Client disconnected...\n");
             }
@@ -131,12 +144,19 @@ public class Server {
         String fileName = toUser + ".pub";
         String dir = System.getProperty("user.dir");
         String publicKeyPath = dir + "\\" + fileName;
+        FileInputStream fileInputStream;
+        byte[] publicKeyBytes;
 
-        File publicFile = new File(publicKeyPath);
-        FileInputStream fileInputStream = new FileInputStream(publicFile);
-        byte[] publicKeyBytes = new byte[(int) publicFile.length()];
-        fileInputStream.read(publicKeyBytes);
-        fileInputStream.close();
+        try {
+            File publicFile = new File(publicKeyPath);
+            fileInputStream = new FileInputStream(publicFile);
+            publicKeyBytes = new byte[(int) publicFile.length()];
+            fileInputStream.read(publicKeyBytes);
+            fileInputStream.close();
+        } catch (FileNotFoundException ex) {
+            System.err.println("The recipient UserId is not found on this server, message discarded");
+            return;
+        }
 
         // Generate the public key
         X509EncodedKeySpec publicSpec = new X509EncodedKeySpec(publicKeyBytes);
