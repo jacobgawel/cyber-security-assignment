@@ -58,6 +58,7 @@ public class Server {
                 DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
 
                 String userHash = dis.readUTF();
+                userHash = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(userHash)));
 
                 List<String[]> messagesForClient = GetMessageForUser(userHash);
 
@@ -146,11 +147,11 @@ public class Server {
         // Encrypt data
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         cipher.init(Cipher.ENCRYPT_MODE, publicKey);
-
+        String timestamp = LocalDateTime.now().format(formatter);
         // TODO: illegal padding exception would get thrown over here
         String fromUserEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(fromUser.getBytes()));
         String messageEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(message.getBytes()));
-        String timestampEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(LocalDateTime.now().format(formatter).getBytes()));
+        String timestampEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(timestamp.getBytes()));
 
         String userIdHashed = GetHash(toUser);
 
@@ -159,6 +160,7 @@ public class Server {
 
         System.out.println();
         System.out.println("incoming message from " + fromUser);
+        System.out.println("Timestamp: " + timestamp);
         System.out.println("recipient: " + toUser);
         System.out.println("message: " + message + "\n");
     }

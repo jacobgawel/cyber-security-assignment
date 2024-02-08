@@ -69,7 +69,8 @@ public class Client {
             DataInputStream dis = new DataInputStream(socket.getInputStream());
 
             // Send user hash first before attempting to read messages
-            dos.writeUTF(userHash);
+            byte[] encryptedUserHash = cipher.doFinal(userHash.getBytes());
+            dos.writeUTF(Base64.getEncoder().encodeToString(encryptedUserHash));
 
             // Now, start reading messages from the server
             List<String> serverMessage = new ArrayList<>();
