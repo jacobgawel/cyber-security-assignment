@@ -168,21 +168,30 @@ public class Server {
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         cipher.init(Cipher.ENCRYPT_MODE, publicKey);
         String timestamp = LocalDateTime.now().format(formatter);
-        // TODO: illegal padding exception would get thrown over here
-        String fromUserEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(fromUser.getBytes()));
-        String messageEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(message.getBytes()));
-        String timestampEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(timestamp.getBytes()));
+        // TODO: illegal padding exception should get thrown over here
+        try {
+            String fromUserEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(fromUser.getBytes()));
+            String messageEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(message.getBytes()));
+            String timestampEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(timestamp.getBytes()));
 
-        String userIdHashed = GetHash(toUser);
+            String userIdHashed = GetHash(toUser);
 
-        Messages.add(new String[]{userIdHashed, fromUserEncrypted,
-                messageEncrypted, timestampEncrypted});
+            Messages.add(new String[]{userIdHashed, fromUserEncrypted,
+                    messageEncrypted, timestampEncrypted});
 
-        System.out.println();
-        System.out.println("incoming message from " + fromUser);
-        System.out.println("Timestamp: " + timestamp);
-        System.out.println("recipient: " + toUser);
-        System.out.println("message: " + message + "\n");
+            System.out.println();
+            System.out.println("incoming message from " + fromUser);
+            System.out.println("Timestamp: " + timestamp);
+            System.out.println("recipient: " + toUser);
+            System.out.println("message: " + message + "\n");
+        } catch (BadPaddingException ex) {
+            System.err.println("Encryption failed, message re-encrypted using different userId");
+            // TODO: Implement code for the re-encryption in the catch block and then save the message
+            // "The server then re-encrypts the message (but without the recipient userid). Finally the server
+            // computes the hashed recipient userid, and saves it and the encrypted message to its collection of
+            // messages. The original (un-hashed) recipient userid is not stored.
+            // The signature is also not stored." <-- project spec
+        }
     }
 
     public static List<String[]> GetMessageForUser(String userId) {
@@ -197,7 +206,7 @@ public class Server {
             String[] message = iterator.next();
             if(message[0].equals(userId)) {
                 userMessages.add(message);
-                iterator.remove(); // Removes the current element safely
+                iterator.remove(); // Removes the current element safely e.g. the message that is being returned
             }
         }
 
