@@ -137,14 +137,12 @@ public class Server {
     public static void LogMessage(String toUser, String fromUser, String message) throws NoSuchAlgorithmException,
             IOException, InvalidKeySpecException, NoSuchPaddingException, InvalidKeyException,
             IllegalBlockSizeException, BadPaddingException {
-        /*
-            this is the simple function that is supposed to add the message to the list,
-            this is likely well the encryption will be implemented later on
-         */
+        // function to log the message in the console and save it into the Message array
 
-        // Format of the message is: toUser, fromUser, message, timestamp, readStatus
+        // Format of the message is: toUser, fromUser, message, timestamp
         // this means that to get the message to the user, we must access message[userId] in a for loop
 
+        // gets the public key based on the username that the message is directed to
         String fileName = toUser + ".pub";
         String dir = System.getProperty("user.dir");
         String publicKeyPath = dir + "\\" + fileName;
@@ -190,11 +188,6 @@ public class Server {
             System.out.println("message: " + message + "\n");
         } catch (BadPaddingException ex) {
             System.err.println("Encryption failed, message discarded");
-            // TODO: Implement code for the re-encryption (potentially) in the catch block and then save the message
-            // "The server then re-encrypts the message (but without the recipient userid). Finally the server
-            // computes the hashed recipient userid, and saves it and the encrypted message to its collection of
-            // messages. The original (un-hashed) recipient userid is not stored.
-            // The signature is also not stored." <-- project spec
         }
     }
 

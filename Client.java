@@ -23,6 +23,8 @@ public class Client {
         System.out.println("Client program (user " + args[2] + ")");
         System.out.println("--------------");
 
+        // assign the essential variables from the arguments that we need to get assign the port, host and private key
+        // e.g. the userId is the name of the private key file
         String host = args[0];
         int port = Integer.parseInt(args[1]);
         String userId = args[2]; // <------ userid variable
