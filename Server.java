@@ -36,7 +36,7 @@ public class Server {
             System.exit(-1);
         }
 
-        PrivateKey serverPrivateKey = getServerPrivateKey(serverPrivateKeyPath);
+        PrivateKey serverPrivateKey = GetServerPrivateKey(serverPrivateKeyPath);
 
         Cipher serverCipherDecrypt = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         serverCipherDecrypt.init(Cipher.DECRYPT_MODE, serverPrivateKey);
@@ -118,7 +118,7 @@ public class Server {
         }
     }
 
-    private static PrivateKey getServerPrivateKey(String serverPrivateKeyPath) throws IOException,
+    private static PrivateKey GetServerPrivateKey(String serverPrivateKeyPath) throws IOException,
             NoSuchAlgorithmException, InvalidKeySpecException {
         // This function is responsible for getting the private key for the server
 
@@ -170,7 +170,7 @@ public class Server {
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         cipher.init(Cipher.ENCRYPT_MODE, publicKey);
         String timestamp = LocalDateTime.now().format(formatter);
-        // TODO: illegal padding exception should get thrown over here
+
         try {
             String fromUserEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(fromUser.getBytes()));
             String messageEncrypted = Base64.getEncoder().encodeToString(cipher.doFinal(message.getBytes()));

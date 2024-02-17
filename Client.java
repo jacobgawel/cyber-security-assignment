@@ -91,6 +91,7 @@ public class Client {
             List<String> serverMessage = new ArrayList<>();
             try {
                 while (true) {
+                    // The if statements are used to tell the client side when to stop and break from the loop
                     String message = dis.readUTF();
                     if ("NO_SERVER_MESSAGES".equals(message)) {
                         break;
@@ -98,7 +99,6 @@ public class Client {
                     if ("END_OF_SERVER_MESSAGE".equals(message)) {
                         break;
                     }
-                    // TODO: Might need some exception handling over here for the incorrect ciphers etc
                     String decryptedMessage = new String(decryptCipher.doFinal(Base64.getDecoder().decode(message)));
                     serverMessage.add(decryptedMessage);
                 }
@@ -133,15 +133,15 @@ public class Client {
             String recipient = scanner.nextLine();
 
             byte[] encryptedRecipient = cipher.doFinal(recipient.getBytes());
-            dos.writeUTF(Base64.getEncoder().encodeToString(encryptedRecipient)); // Assuming "bob" is the recipient
+            dos.writeUTF(Base64.getEncoder().encodeToString(encryptedRecipient));
 
             System.out.print("Enter your message: ");
             String message = scanner.nextLine();
 
             byte[] encryptedMessage = cipher.doFinal(message.getBytes());
-            dos.writeUTF(Base64.getEncoder().encodeToString(encryptedMessage)); // The message
+            dos.writeUTF(Base64.getEncoder().encodeToString(encryptedMessage));
 
-            dos.writeUTF("END_OF_CLIENT_MESSAGE"); // Signal the end of messages
+            dos.writeUTF("END_OF_CLIENT_MESSAGE"); // Signal the end of message
 
         } catch (Exception exception) {
             System.err.println(exception);
