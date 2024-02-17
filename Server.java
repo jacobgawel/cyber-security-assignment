@@ -45,8 +45,6 @@ public class Server {
 
         ServerSocket socketServer = new ServerSocket(port);
 
-        LogMessage("alice", "bob", "This is a test");
-
         System.out.println("Server program");
         System.out.println("--------------");
 

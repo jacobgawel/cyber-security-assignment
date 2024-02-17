@@ -1,3 +1,4 @@
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 import java.io.*;
@@ -35,26 +36,38 @@ public class Client {
         String privateKeyPath = dir + "\\" + privateFilename;
         String publicKeyPath = dir + "\\" + publicFilename;
 
-        File privateFile = new File(privateKeyPath);
-        FileInputStream privateFis = new FileInputStream(privateFile);
-        byte[] privateKeyBytes = new byte[(int) privateFile.length()];
-        privateFis.read(privateKeyBytes);
-        privateFis.close();
+        PrivateKey privateKey = null;
+        try {
+            File privateFile = new File(privateKeyPath);
+            FileInputStream privateFis = new FileInputStream(privateFile);
+            byte[] privateKeyBytes = new byte[(int) privateFile.length()];
+            privateFis.read(privateKeyBytes);
+            privateFis.close();
 
-        PKCS8EncodedKeySpec privateSpec = new PKCS8EncodedKeySpec(privateKeyBytes);
-        KeyFactory privateKeyFactory = KeyFactory.getInstance("RSA");
-        PrivateKey privateKey = privateKeyFactory.generatePrivate(privateSpec);
+            PKCS8EncodedKeySpec privateSpec = new PKCS8EncodedKeySpec(privateKeyBytes);
+            KeyFactory privateKeyFactory = KeyFactory.getInstance("RSA");
+            privateKey = privateKeyFactory.generatePrivate(privateSpec);
+        } catch (FileNotFoundException ex) {
+            System.err.println("No private key file for the userId found in the client directory");
+            System.exit(-1);
+        }
 
-        File publicFile = new File(publicKeyPath);
-        FileInputStream publicFis = new FileInputStream(publicFile);
-        byte[] publicKeyBytes = new byte[(int) publicFile.length()];
-        publicFis.read(publicKeyBytes); // Corrected variable name here
-        publicFis.close();
+        PublicKey publicKey = null;
+        try {
+            File publicFile = new File(publicKeyPath);
+            FileInputStream publicFis = new FileInputStream(publicFile);
+            byte[] publicKeyBytes = new byte[(int) publicFile.length()];
+            publicFis.read(publicKeyBytes); // Corrected variable name here
+            publicFis.close();
 
-        // Generate the public key
-        X509EncodedKeySpec publicSpec = new X509EncodedKeySpec(publicKeyBytes);
-        KeyFactory publicKeyFactory = KeyFactory.getInstance("RSA");
-        PublicKey publicKey = publicKeyFactory.generatePublic(publicSpec);
+            // Generate the public key
+            X509EncodedKeySpec publicSpec = new X509EncodedKeySpec(publicKeyBytes);
+            KeyFactory publicKeyFactory = KeyFactory.getInstance("RSA");
+            publicKey = publicKeyFactory.generatePublic(publicSpec);
+        } catch (FileNotFoundException ex) {
+            System.err.println("No server public key found in the client directory");
+            System.exit(-1);
+        }
 
         // Encrypt data
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
@@ -76,17 +89,21 @@ public class Client {
 
             // Now, start reading messages from the server
             List<String> serverMessage = new ArrayList<>();
-            while(true) {
-                String message = dis.readUTF();
-                if ("NO_SERVER_MESSAGES".equals(message)) {
-                    break;
+            try {
+                while (true) {
+                    String message = dis.readUTF();
+                    if ("NO_SERVER_MESSAGES".equals(message)) {
+                        break;
+                    }
+                    if ("END_OF_SERVER_MESSAGE".equals(message)) {
+                        break;
+                    }
+                    // TODO: Might need some exception handling over here for the incorrect ciphers etc
+                    String decryptedMessage = new String(decryptCipher.doFinal(Base64.getDecoder().decode(message)));
+                    serverMessage.add(decryptedMessage);
                 }
-                if("END_OF_SERVER_MESSAGE".equals(message)) {
-                    break;
-                }
-                // TODO: Might need some exception handling over here for the incorrect ciphers etc
-                String decryptedMessage = new String(decryptCipher.doFinal(Base64.getDecoder().decode(message)));
-                serverMessage.add(decryptedMessage);
+            } catch (BadPaddingException ex) {
+                System.err.println("Decryption failed using the userId private key");
             }
 
             System.out.println("There are " + serverMessage.size() / 2 + " message(s) for you.\n");
