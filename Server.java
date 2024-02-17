@@ -64,6 +64,8 @@ public class Server {
                 List<String[]> messagesForClient = GetMessageForUser(userHash);
 
                 if (!messagesForClient.isEmpty()) {
+                    // the client will then loop and send back the encrypted message back to the client
+                    // the message is encrypted using the pub key that is linked to the hashed id
                     for (String[] message : messagesForClient) {
                         dos.writeUTF(message[2]);
                         dos.writeUTF(message[3]);
