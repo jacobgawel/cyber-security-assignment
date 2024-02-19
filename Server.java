@@ -6,16 +6,14 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.file.Files;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 public class Server {
     static List<String[]> Messages = new ArrayList<>();
@@ -81,6 +79,7 @@ public class Server {
                         dos.writeUTF("MESSAGE");
                         String serverMessage = message[2] + "," + message[3];
                         dos.writeUTF(serverMessage);
+                        // create signature and send it to client
                         sig.update(serverMessage.getBytes());
                         byte[] signature = sig.sign();
                         int lengthOfByte = signature.length;
@@ -97,37 +96,70 @@ public class Server {
                 System.out.println("login from user " + userHash);
                 System.out.println("Delivering " + messagesForClient.size() + " message(s)...");
 
-                List<String> clientMessage = new ArrayList<>();
+                String keyMessage = null;
+                int signatureSize = 0;
+                byte[] signatureMessage = null;
+                String concatMessage = null;
+
                 while (true) {
                     String message = dis.readUTF();
-                    if ("END_OF_CLIENT_MESSAGE".equals(message)) {
+                    if ("KEY".equals(message)) {
+                        message = dis.readUTF();
+                        keyMessage = message;
+                    }
+
+                    if ("LENGTH".equals(message)) {
+                        message = dis.readUTF();
+                        signatureSize = Integer.parseInt(message);
+                    }
+
+                    if ("SIGNATURE".equals(message)) {
+                        byte[] signature = new byte[signatureSize];
+                        dis.readFully(signature);
+                        signatureMessage = signature;
+                    }
+
+                    if ("MESSAGE".equals(message)) {
+                        message = dis.readUTF();
+                        concatMessage = message;
+                    }
+
+                    if ("END_MESSAGE".equals(message)) {
                         break;
                     }
-                    clientMessage.add(message);
                 }
-
-                String fromUserEncrypted = clientMessage.get(0);
-                String toUserEncrypted = clientMessage.get(1);
-                String messageEncrypted = clientMessage.get(2);
 
                 // the message gets decrypted before going into the function that logs the message which
                 // should encrypt the message with the corresponding public key according to the toUser
                 try {
-                    String decryptedFromUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(fromUserEncrypted)));
+                    String userId = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(keyMessage)));
+                    String fileName = userId + ".pub";
+                    String publicKeyPath = dir + "\\" + fileName;
+                    byte[] publicKeyBytes = null;
+                    boolean fileExistsCheck = true;
 
-                    boolean senderUserIdCheck = true;
                     try {
-                        File senderPublicFile = new File(System.getProperty("user.dir") + "\\" + decryptedFromUser + ".pub");
-                        FileInputStream fileCheck = new FileInputStream(senderPublicFile);
+                        File file = new File(publicKeyPath);
+                        publicKeyBytes = Files.readAllBytes(file.toPath());
                     } catch (FileNotFoundException ex) {
-                        System.err.println("Sender UserId does not exist on this server, message discarded");
-                        senderUserIdCheck = false;
+                        System.err.println("File for the userId has not been found, message discarded");
+                        fileExistsCheck = false;
                     }
 
-                    if (senderUserIdCheck) {
-                        String decryptedToUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(toUserEncrypted)));
-                        String decryptedMessage = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(messageEncrypted)));
-                        LogMessage(decryptedToUser, decryptedFromUser, decryptedMessage);
+                    boolean result = verifySignature(concatMessage, signatureMessage, publicKeyBytes);
+
+                    if (!result) {
+                        System.err.println("Verification of signature failed, message discarded");
+                    }
+
+                    String[] splitMessage = concatMessage.split(",");
+                    String encryptedRecipient = splitMessage[0];
+                    String encryptedMessage = splitMessage[1];
+
+                    if (fileExistsCheck && result) {
+                        String decryptedToUser = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(encryptedRecipient)));
+                        String decryptedMessage = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(encryptedMessage)));
+                        LogMessage(decryptedToUser, userId, decryptedMessage);
                     }
                 } catch (BadPaddingException ex) {
                     System.err.println("Decryption failed using the server key, message discarded");
@@ -250,5 +282,20 @@ public class Server {
         }
 
         return sb.toString();
+    }
+
+    public static boolean verifySignature(String serverEncryptedMessage, byte[] serverMessageSignature, byte[] publicKeyBytes)
+            throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, SignatureException {
+
+        X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        PublicKey pk = kf.generatePublic(publicKeySpec);
+
+        Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initVerify(pk);
+
+        signature.update(serverEncryptedMessage.getBytes());
+
+        return signature.verify(serverMessageSignature);
     }
 }

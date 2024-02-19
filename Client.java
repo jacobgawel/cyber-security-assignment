@@ -75,6 +75,9 @@ public class Client {
         Cipher decryptCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         decryptCipher.init(Cipher.DECRYPT_MODE, privateKey);
 
+        Signature sig = Signature.getInstance("SHA256withRSA");
+        sig.initSign(privateKey);
+
         try {
             String userHash = GetHashFromUser(args); // Assume this function exists and works as intended
             Socket socket = new Socket(host, port);
@@ -86,7 +89,6 @@ public class Client {
             dos.writeUTF(Base64.getEncoder().encodeToString(encryptedUserHash));
 
             // Now, start reading messages from the server
-            List<String> serverMessage = new ArrayList<>();
             List<String> serverEncryptedMessages = new ArrayList<>();
             List<byte[]> serverMessageSignatures = new ArrayList<>();
 
@@ -144,23 +146,39 @@ public class Client {
             }
 
             // After processing server messages, send client messages
-            byte[] encryptedUserId = cipher.doFinal(userId.getBytes());
-            dos.writeUTF(Base64.getEncoder().encodeToString(encryptedUserId));
+            byte[] encryptedUserIdBytes = cipher.doFinal(userId.getBytes());
+            String encryptedUserId = Base64.getEncoder().encodeToString(encryptedUserIdBytes);
 
             System.out.print("Enter the recipient userid: ");
             String recipient = scanner.nextLine();
 
-            byte[] encryptedRecipient = cipher.doFinal(recipient.getBytes());
-            dos.writeUTF(Base64.getEncoder().encodeToString(encryptedRecipient));
+            byte[] encryptedRecipientBytes = cipher.doFinal(recipient.getBytes());
+            String encryptedRecipient = Base64.getEncoder().encodeToString(encryptedRecipientBytes);
 
             System.out.print("Enter your message: ");
             String message = scanner.nextLine();
 
-            byte[] encryptedMessage = cipher.doFinal(message.getBytes());
-            dos.writeUTF(Base64.getEncoder().encodeToString(encryptedMessage));
+            byte[] encryptedMessageBytes = cipher.doFinal(message.getBytes());
+            String encryptedMessage = Base64.getEncoder().encodeToString(encryptedMessageBytes);
 
-            dos.writeUTF("END_OF_CLIENT_MESSAGE"); // Signal the end of message
+            dos.writeUTF("KEY");
+            dos.writeUTF(encryptedUserId);
 
+            dos.writeUTF("LENGTH");
+            // create signature for server
+            String finalMessage = encryptedRecipient + "," + encryptedMessage;
+            sig.update(finalMessage.getBytes());
+            byte[] signature = sig.sign();
+            int lengthOfByte = signature.length;
+            dos.writeUTF(String.valueOf(lengthOfByte));
+
+            dos.writeUTF("SIGNATURE");
+            dos.write(signature);
+
+            dos.writeUTF("MESSAGE");
+            dos.writeUTF(finalMessage);
+
+            dos.writeUTF("END_MESSAGE");
         } catch (Exception exception) {
             System.err.println(exception);
         }
