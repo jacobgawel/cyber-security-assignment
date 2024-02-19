@@ -99,8 +99,11 @@ public class Client {
                     if ("END_OF_SERVER_MESSAGE".equals(message)) {
                         break;
                     }
-                    String decryptedMessage = new String(decryptCipher.doFinal(Base64.getDecoder().decode(message)));
+                    String[] splitMessage = message.split(",");
+                    String decryptedMessage = new String(decryptCipher.doFinal(Base64.getDecoder().decode(splitMessage[0])));
+                    String decryptedTimestamp = new String(decryptCipher.doFinal(Base64.getDecoder().decode(splitMessage[1])));
                     serverMessage.add(decryptedMessage);
+                    serverMessage.add(decryptedTimestamp);
                 }
             } catch (BadPaddingException ex) {
                 System.err.println("Decryption failed using the userId private key");

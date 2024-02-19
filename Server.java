@@ -78,8 +78,7 @@ public class Server {
                     // the client will then loop and send back the encrypted message back to the client
                     // the message is encrypted using the pub key that is linked to the hashed id
                     for (String[] message : messagesForClient) {
-                        dos.writeUTF(message[2]);
-                        dos.writeUTF(message[3]);
+                        dos.writeUTF(message[2] + "," + message[3]);
                     }
                     dos.writeUTF("END_OF_SERVER_MESSAGE");
                 } else {
