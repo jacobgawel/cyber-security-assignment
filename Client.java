@@ -125,9 +125,13 @@ public class Client {
                 }
 
                 String[] splitMessage = serverEncryptedMessages.get(i).split(",");
-                String decryptedMessage = new String(decryptCipher.doFinal(Base64.getDecoder().decode(splitMessage[0])));
-                String decryptedTimestamp = new String(decryptCipher.doFinal(Base64.getDecoder().decode(splitMessage[1])));
-                System.out.println("Date: " + decryptedTimestamp + "\nMessage: " + decryptedMessage + "\n");
+                try {
+                    String decryptedMessage = new String(decryptCipher.doFinal(Base64.getDecoder().decode(splitMessage[0])));
+                    String decryptedTimestamp = new String(decryptCipher.doFinal(Base64.getDecoder().decode(splitMessage[1])));
+                    System.out.println("Date: " + decryptedTimestamp + "\nMessage: " + decryptedMessage + "\n");
+                } catch (BadPaddingException ex) {
+                    System.err.println("Decryption failed using the userId private key");
+                }
             }
 
             Scanner scanner = new Scanner(System.in);
