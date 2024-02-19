@@ -139,6 +139,7 @@ public class Server {
                     boolean fileExistsCheck = true;
 
                     try {
+                        // verification of the userId that is being used to send the message
                         File file = new File(publicKeyPath);
                         publicKeyBytes = Files.readAllBytes(file.toPath());
                     } catch (FileNotFoundException ex) {
@@ -285,7 +286,8 @@ public class Server {
     }
 
     public static boolean verifySignature(String serverEncryptedMessage, byte[] serverMessageSignature, byte[] publicKeyBytes)
-            throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, SignatureException {
+            throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, SignatureException {
+        // this function is responsible for verifying the signature from the sender
 
         X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
         KeyFactory kf = KeyFactory.getInstance("RSA");
