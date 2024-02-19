@@ -36,7 +36,14 @@ public class Server {
             System.exit(-1);
         }
 
-        PrivateKey serverPrivateKey = GetServerPrivateKey(serverPrivateKeyPath);
+        PrivateKey serverPrivateKey = null;
+
+        try {
+            serverPrivateKey = GetServerPrivateKey(serverPrivateKeyPath);
+        } catch (FileNotFoundException ex) {
+            System.err.println("Please generate a server private + public key before running the server");
+            System.exit(-1);
+        }
 
         Cipher serverCipherDecrypt = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         serverCipherDecrypt.init(Cipher.DECRYPT_MODE, serverPrivateKey);
@@ -45,8 +52,14 @@ public class Server {
 
         ServerSocket socketServer = new ServerSocket(port);
 
+        // Generate signature for the server
+        Signature sig = Signature.getInstance("SHA256withRSA");
+        sig.initSign(serverPrivateKey);
+
         System.out.println("Server program");
         System.out.println("--------------");
+
+        LogMessage("alice", "bob", "hello world");
 
         while(true) {
 
