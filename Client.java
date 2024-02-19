@@ -3,14 +3,12 @@ import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 import java.io.*;
 import java.net.Socket;
+import java.nio.file.Files;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 public class Client {
     public static void main(String[] args) throws
@@ -89,34 +87,47 @@ public class Client {
 
             // Now, start reading messages from the server
             List<String> serverMessage = new ArrayList<>();
-            try {
-                while (true) {
-                    // The if statements are used to tell the client side when to stop and break from the loop
-                    String message = dis.readUTF();
-                    if ("NO_SERVER_MESSAGES".equals(message)) {
-                        break;
-                    }
-                    if ("END_OF_SERVER_MESSAGE".equals(message)) {
-                        break;
-                    }
-                    String[] splitMessage = message.split(",");
-                    String decryptedMessage = new String(decryptCipher.doFinal(Base64.getDecoder().decode(splitMessage[0])));
-                    String decryptedTimestamp = new String(decryptCipher.doFinal(Base64.getDecoder().decode(splitMessage[1])));
-                    serverMessage.add(decryptedMessage);
-                    serverMessage.add(decryptedTimestamp);
+            List<String> serverEncryptedMessages = new ArrayList<>();
+            List<byte[]> serverMessageSignatures = new ArrayList<>();
+
+            int signatureSize = 0;
+            while (true) {
+                // The if statements are used to tell the client side when to stop and break from the loop
+                String message = dis.readUTF();
+                if ("LENGTH".equals(message)) {
+                    signatureSize = Integer.parseInt(dis.readUTF());
                 }
-            } catch (BadPaddingException ex) {
-                System.err.println("Decryption failed using the userId private key");
+                if ("SIGNATURE".equals(message)) {
+                    byte[] signature = new byte[signatureSize];
+                    dis.readFully(signature);
+                    serverMessageSignatures.add(signature);
+                }
+                if ("NO_SERVER_MESSAGES".equals(message)) {
+                    break;
+                }
+                if ("END_OF_SERVER_MESSAGE".equals(message)) {
+                    break;
+                }
+                if ("MESSAGE".equals(message)) {
+                    message = dis.readUTF();
+                    serverEncryptedMessages.add(message);
+                }
             }
 
-            System.out.println("There are " + serverMessage.size() / 2 + " message(s) for you.\n");
+            System.out.println("There are " + serverEncryptedMessages.size() + " message(s) for you.\n");
 
-            // Print messages received from the server
-            for (int i = 0; i < serverMessage.size(); i += 2) {
-                String message = serverMessage.get(i);
-                String date = serverMessage.get(i + 1);
+            for (int i = 0; i < serverEncryptedMessages.size(); i++) {
+                var result = verifySignature(serverEncryptedMessages.get(i),
+                        serverMessageSignatures.get(i), publicKeyPath);
+                if (!result) { // terminate the program immediately if the signature fails
+                    dis.close();
+                    System.exit(-1);
+                }
 
-                System.out.println("Date: " + date + "\nMessage: " + message + "\n");
+                String[] splitMessage = serverEncryptedMessages.get(i).split(",");
+                String decryptedMessage = new String(decryptCipher.doFinal(Base64.getDecoder().decode(splitMessage[0])));
+                String decryptedTimestamp = new String(decryptCipher.doFinal(Base64.getDecoder().decode(splitMessage[1])));
+                System.out.println("Date: " + decryptedTimestamp + "\nMessage: " + decryptedMessage + "\n");
             }
 
             Scanner scanner = new Scanner(System.in);
@@ -169,5 +180,23 @@ public class Client {
         }
 
         return sb.toString();
+    }
+
+    public static boolean verifySignature(String serverEncryptedMessage, byte[] serverMessageSignature, String publicKeyPath)
+            throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, SignatureException {
+
+        File file = new File(publicKeyPath);
+        byte[] publicKeyBytes = Files.readAllBytes(file.toPath());
+
+        X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        PublicKey pk = kf.generatePublic(publicKeySpec);
+
+        Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initVerify(pk);
+
+        signature.update(serverEncryptedMessage.getBytes());
+
+        return signature.verify(serverMessageSignature);
     }
 }

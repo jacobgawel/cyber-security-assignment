@@ -78,7 +78,16 @@ public class Server {
                     // the client will then loop and send back the encrypted message back to the client
                     // the message is encrypted using the pub key that is linked to the hashed id
                     for (String[] message : messagesForClient) {
-                        dos.writeUTF(message[2] + "," + message[3]);
+                        dos.writeUTF("MESSAGE");
+                        String serverMessage = message[2] + "," + message[3];
+                        dos.writeUTF(serverMessage);
+                        sig.update(serverMessage.getBytes());
+                        byte[] signature = sig.sign();
+                        int lengthOfByte = signature.length;
+                        dos.writeUTF("LENGTH");
+                        dos.writeUTF(String.valueOf(lengthOfByte));
+                        dos.writeUTF("SIGNATURE");
+                        dos.write(signature);
                     }
                     dos.writeUTF("END_OF_SERVER_MESSAGE");
                 } else {
@@ -126,6 +135,8 @@ public class Server {
 
             } catch (SocketException ex) {
                 System.out.println("Client disconnected...\n");
+            } catch (SignatureException e) {
+                throw new RuntimeException(e);
             }
         }
     }
