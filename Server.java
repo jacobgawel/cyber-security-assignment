@@ -57,8 +57,6 @@ public class Server {
         System.out.println("Server program");
         System.out.println("--------------");
 
-        LogMessage("alice", "bob", "hello world");
-
         while(true) {
 
             try {
