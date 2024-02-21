@@ -28,7 +28,7 @@ public class Server {
         int port;
         String serverPrivateFilename = "server.prv";
         String dir = System.getProperty("user.dir");
-        String serverPrivateKeyPath = dir + "\\" + serverPrivateFilename;
+        String serverPrivateKeyPath = dir + "/" + serverPrivateFilename;
         if (args.length != 1) {
             System.err.println("Usage: java Server port");
             System.exit(-1);
@@ -132,7 +132,7 @@ public class Server {
                 try {
                     String userId = new String(serverCipherDecrypt.doFinal(Base64.getDecoder().decode(keyMessage)));
                     String fileName = userId + ".pub";
-                    String publicKeyPath = dir + "\\" + fileName;
+                    String publicKeyPath = dir + "/" + fileName;
                     byte[] publicKeyBytes = null;
                     boolean fileExistsCheck = true;
 
@@ -199,7 +199,7 @@ public class Server {
         // gets the public key based on the username that the message is directed to
         String fileName = toUser + ".pub";
         String dir = System.getProperty("user.dir");
-        String publicKeyPath = dir + "\\" + fileName;
+        String publicKeyPath = dir + "/" + fileName;
         FileInputStream fileInputStream;
         byte[] publicKeyBytes;
 

@@ -31,8 +31,8 @@ public class Client {
         String publicFilename = "server.pub";
 
         String dir = System.getProperty("user.dir");
-        String privateKeyPath = dir + "\\" + privateFilename;
-        String publicKeyPath = dir + "\\" + publicFilename;
+        String privateKeyPath = dir + "/" + privateFilename;
+        String publicKeyPath = dir + "/" + publicFilename;
 
         PrivateKey privateKey = null;
         try {
